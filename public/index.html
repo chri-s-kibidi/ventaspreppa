@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>candyzz by chr!s | Gomitas Xile Chile</title>
+  <meta name="description" content="Encuentra y aparta las gomitas enchiladas Xile Chile (Cereza, Arcoiris y Sandía) en candyzz by chr!s.">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <header class="navbar container">
+    <div class="logo brand-font">CANDYZZ<span>by chr!s</span></div>
+    <a href="/admin" class="nav-link">ADMIN</a>
+  </header>
+
+  <section class="hero container">
+    <h1>XILE CHILE</h1>
+    <p class="brand-tagline">Disponibles en <strong>candyzz by chr!s</strong></p>
+    <p>Gomitas enchiladas con actitud. Sabor intenso, picor urbano. Aparta tu bolsa antes de que se acaben.</p>
+  </section>
+
+  <section id="sabores" class="container">
+    <h2 class="section-title">Elige tu sabor</h2>
+    <div class="sabores-grid">
+
+      <div class="sabor-card cereza">
+        <div class="sabor-placeholder">CEREZA</div>
+        <h3>Cereza</h3>
+        <p>Rojo carmesí intenso. Dulce, ácido y con un toque de chile que pega directo.</p>
+      </div>
+
+      <div class="sabor-card arcoiris">
+        <div class="sabor-placeholder">ARCOIRIS</div>
+        <h3>Arcoiris</h3>
+        <p>Explosión de sabores frutales con un degradado de los 3 colores primarios.</p>
+      </div>
+
+      <div class="sabor-card sandia">
+        <div class="sabor-placeholder">SANDÍA</div>
+        <h3>Sandía</h3>
+        <p>Fresca, neón y enchilada. El contraste perfecto entre dulce y picante.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="apartado" class="container">
+    <h2 class="section-title">Confirma tu apartado</h2>
+    <div class="form-wrapper">
+      <form id="apartado-form" novalidate>
+        <div class="form-group">
+          <label for="nombre">Nombre completo</label>
+          <input type="text" id="nombre" name="nombre" placeholder="Ej. Juan Pérez" maxlength="100" required>
+        </div>
+
+        <div class="form-group">
+          <label for="sabor">Sabor</label>
+          <select id="sabor" name="sabor" required>
+            <option value="" disabled selected>Selecciona un sabor</option>
+            <option value="Cereza">Cereza</option>
+            <option value="Arcoiris">Arcoiris</option>
+            <option value="Sandía">Sandía</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="cantidad">Cantidad de bolsas</label>
+          <input type="number" id="cantidad" name="cantidad" min="1" max="50" value="1" required>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">Confirmar Apartado</button>
+
+        <div id="feedback" class="feedback-msg"></div>
+      </form>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2026 candyzz by chr!s. Xile Chile es una marca de terceros; este sitio no tiene afiliación oficial con sus propietarios.
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>
