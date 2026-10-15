@@ -5,8 +5,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
-// Inicializa la base de datos (crea la tabla si no existe)
-require('./db');
+const db = require('./db');
 
 const apartadosRoutes = require('./routes/apartados');
 const authRoutes = require('./routes/auth');
@@ -76,6 +75,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🍬 candyzz by chr!s (Xile Chile) corriendo en el puerto ${PORT}`);
-});
+db.initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🍬 candyzz by chr!s (Xile Chile) corriendo en el puerto ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('ERROR: No se pudo inicializar la base de datos:', err);
+    process.exit(1);
+  });

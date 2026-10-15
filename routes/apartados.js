@@ -38,7 +38,7 @@ router.post(
       .isInt({ min: 1, max: 50 }).withMessage('La cantidad debe ser un número entero entre 1 y 50')
       .toInt()
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ error: errors.array()[0].msg, errors: errors.array() });
@@ -47,14 +47,14 @@ router.post(
     const { nombre, sabor, cantidad } = req.body;
 
     try {
-      const stmt = db.prepare(
-        'INSERT INTO apartados (nombre, sabor, cantidad, estado) VALUES (?, ?, ?, ?)'
+      const result = await db.query(
+        'INSERT INTO apartados (nombre, sabor, cantidad, estado) VALUES ($1, $2, $3, $4) RETURNING id',
+        [nombre, sabor, cantidad, 'Pendiente']
       );
-      const info = stmt.run(nombre, sabor, cantidad, 'Pendiente');
 
       return res.status(201).json({
         message: '¡Apartado confirmado con éxito!',
-        id: info.lastInsertRowid
+        id: result.rows[0].id
       });
     } catch (err) {
       console.error('Error al crear apartado:', err);
@@ -64,12 +64,10 @@ router.post(
 );
 
 // GET /api/apartados -> listar todos los apartados (protegido, solo admin)
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const apartados = db
-      .prepare('SELECT * FROM apartados ORDER BY datetime(fecha) DESC')
-      .all();
-    return res.json(apartados);
+    const result = await db.query('SELECT * FROM apartados ORDER BY fecha DESC');
+    return res.json(result.rows);
   } catch (err) {
     console.error('Error al listar apartados:', err);
     return res.status(500).json({ error: 'Error interno al obtener los apartados.' });
@@ -86,7 +84,7 @@ router.patch(
       .notEmpty().withMessage('El estado es obligatorio')
       .isIn(['Pendiente', 'Entregado/Pagado']).withMessage('Estado no válido')
   ],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ error: errors.array()[0].msg });
@@ -100,10 +98,9 @@ router.patch(
     const { estado } = req.body;
 
     try {
-      const stmt = db.prepare('UPDATE apartados SET estado = ? WHERE id = ?');
-      const info = stmt.run(estado, id);
+      const result = await db.query('UPDATE apartados SET estado = $1 WHERE id = $2', [estado, id]);
 
-      if (info.changes === 0) {
+      if (result.rowCount === 0) {
         return res.status(404).json({ error: 'Apartado no encontrado' });
       }
 

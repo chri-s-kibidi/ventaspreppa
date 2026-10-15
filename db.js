@@ -1,27 +1,41 @@
-const path = require('path');
-const fs = require('fs');
-const { DatabaseSync } = require('node:sqlite');
-
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
 }
 
-const dbPath = path.join(dataDir, 'xile_chile.db');
-const db = new DatabaseSync(dbPath);
+const { Pool } = require('pg');
 
-db.exec('PRAGMA journal_mode = WAL;');
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: La variable de entorno DATABASE_URL es obligatoria. Define DATABASE_URL (Neon/Postgres).');
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+// Evita que un error de conexión ociosa en el pool tumbe el proceso
+pool.on('error', (err) => {
+  console.error('Error inesperado en el pool de Postgres:', err);
+});
 
 // Inicializa la tabla de apartados si no existe
-db.exec(`
-  CREATE TABLE IF NOT EXISTS apartados (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL,
-    sabor TEXT NOT NULL,
-    cantidad INTEGER NOT NULL,
-    estado TEXT NOT NULL DEFAULT 'Pendiente',
-    fecha TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-  )
-`);
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS apartados (
+      id SERIAL PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      sabor TEXT NOT NULL,
+      cantidad INTEGER NOT NULL,
+      estado TEXT NOT NULL DEFAULT 'Pendiente',
+      fecha TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
 
-module.exports = db;
+module.exports = {
+  pool,
+  query: (text, params) => pool.query(text, params),
+  initDb
+};
+
