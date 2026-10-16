@@ -19,11 +19,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmacionLista = document.getElementById('confirmacion-lista');
   const confirmacionTotal = document.getElementById('confirmacion-total');
   const btnNuevo = document.getElementById('btn-nuevo');
+  const nombreInput = document.getElementById('nombre');
+  const contactoInput = document.getElementById('contacto');
+  const avisoCerrados = document.getElementById('aviso-cerrados');
+  const entregaBloque = document.getElementById('entrega-bloque');
+  const entregaTexto = document.getElementById('entrega-texto');
+  const confirmacionEntrega = document.getElementById('confirmacion-entrega');
+  const confirmacionEntregaTexto = document.getElementById('confirmacion-entrega-texto');
 
   let productos = [];
   const carrito = new Map(); // producto_id -> cantidad
   const tarjetas = new Map(); // producto_id -> { producto, valor, menos, mas }
   let enviando = false;
+  let pedidosAbiertos = true; // si la config no carga, la página se comporta como abierta
+  let textoEntrega = '';
+  let actualizando = false;
 
   function showFeedback(message, type) {
     feedback.textContent = message;
@@ -96,8 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const cantidad = carrito.get(id) || 0;
       const max = maxPorProducto(ref.producto);
       ref.valor.textContent = String(cantidad);
-      ref.menos.disabled = max === 0 || cantidad === 0;
-      ref.mas.disabled = max === 0
+      ref.menos.disabled = !pedidosAbiertos || max === 0 || cantidad === 0;
+      ref.mas.disabled = !pedidosAbiertos
+        || max === 0
         || cantidad >= max
         || (cantidad === 0 && carrito.size >= MAX_SABORES);
     });
@@ -196,6 +207,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function consultarConfig() {
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) return;
+      const data = await res.json();
+      pedidosAbiertos = data.pedidos_abiertos !== false;
+      textoEntrega = typeof data.texto_entrega === 'string' ? data.texto_entrega.trim() : '';
+    } catch (err) {
+      // Se conserva el estado anterior; se reintenta en el siguiente ciclo.
+    }
+  }
+
+  function aplicarEstadoPedidos() {
+    const cerrado = !pedidosAbiertos;
+    avisoCerrados.hidden = !cerrado;
+    entregaTexto.textContent = textoEntrega;
+    entregaBloque.hidden = textoEntrega === '';
+    nombreInput.disabled = cerrado;
+    contactoInput.disabled = cerrado;
+    submitBtn.disabled = cerrado || enviando;
+    actualizarControles();
+  }
+
+  async function refrescarProductos() {
+    try {
+      const res = await fetch('/api/productos');
+      if (!res.ok) return;
+      productos = await res.json();
+      ajustarCarritoAStock();
+      renderSabores();
+      renderResumen();
+    } catch (err) {
+      // Se conservan los datos actuales; se reintenta en el siguiente ciclo.
+    }
+  }
+
+  async function actualizarCadaMinuto() {
+    if (actualizando || enviando || !modal.hidden) return;
+    actualizando = true;
+    try {
+      await consultarConfig();
+      aplicarEstadoPedidos();
+      await refrescarProductos();
+    } finally {
+      actualizando = false;
+    }
+  }
+
   async function cargarSabores() {
     try {
       const res = await fetch('/api/productos');
@@ -217,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setEnviando(activo) {
     enviando = activo;
-    submitBtn.disabled = activo;
+    submitBtn.disabled = activo || !pedidosAbiertos;
     modalApartar.disabled = activo;
     modalVolver.disabled = activo;
     submitBtn.textContent = activo ? 'Enviando...' : 'Confirmar apartado';
@@ -243,6 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderResumen();
     cerrarModal();
     ocultarFeedback();
+
+    confirmacionEntregaTexto.textContent = textoEntrega;
+    confirmacionEntrega.hidden = textoEntrega === '';
 
     saboresSection.hidden = true;
     apartadoSection.hidden = true;
@@ -274,6 +336,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 403) {
+          pedidosAbiertos = false;
+          aplicarEstadoPedidos();
+          showFeedback(data.error || 'Los apartados están cerrados por ahora', 'error');
+          return;
+        }
         showFeedback(data.error || 'No se pudo confirmar tu apartado. Intenta de nuevo.', 'error');
         await cargarSabores();
         return;
@@ -289,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (enviando) return;
+    if (enviando || !pedidosAbiertos) return;
 
     if (obtenerLineas().length === 0) {
       showFeedback('Agrega al menos un sabor a tu carrito.', 'error');
@@ -322,5 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
   btnNuevo.addEventListener('click', () => location.reload());
 
   renderResumen();
+  aplicarEstadoPedidos();
+  consultarConfig().then(aplicarEstadoPedidos);
   cargarSabores();
+  setInterval(actualizarCadaMinuto, 60000);
 });

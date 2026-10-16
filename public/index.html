@@ -29,6 +29,7 @@
 
   <section id="apartado" class="container">
     <h2 class="section-title">Confirma tu apartado</h2>
+    <p id="aviso-cerrados" class="aviso-cerrados" role="status" hidden>Los apartados están cerrados por ahora</p>
     <div class="form-wrapper">
       <div class="carrito-resumen">
         <p id="carrito-vacio" class="carrito-vacio">Tu carrito está vacío.</p>
@@ -37,6 +38,11 @@
           <span>Total</span>
           <strong id="carrito-total">$0</strong>
         </div>
+      </div>
+
+      <div id="entrega-bloque" class="entrega-bloque" hidden>
+        <h3>Entrega</h3>
+        <p id="entrega-texto" class="entrega-texto"></p>
       </div>
 
       <form id="apartado-form" novalidate>
@@ -72,10 +78,15 @@
     <div class="form-wrapper confirmacion">
       <h2 class="section-title">¡Apartado confirmado!</h2>
       <p id="confirmacion-numero" class="confirmacion-numero"></p>
+      <p class="confirmacion-captura">Guarda una captura de esta pantalla con tu número de pedido</p>
       <ul id="confirmacion-lista" class="carrito-lista"></ul>
       <div class="carrito-total">
         <span>Total</span>
         <strong id="confirmacion-total"></strong>
+      </div>
+      <div id="confirmacion-entrega" class="entrega-bloque" hidden>
+        <h3>Entrega</h3>
+        <p id="confirmacion-entrega-texto" class="entrega-texto"></p>
       </div>
       <button type="button" class="btn-submit" id="btn-nuevo">Hacer otro apartado</button>
     </div>
