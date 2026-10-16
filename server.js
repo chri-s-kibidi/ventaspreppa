@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const db = require('./db');
 
 const apartadosRoutes = require('./routes/apartados');
+const productosRoutes = require('./routes/productos');
 const authRoutes = require('./routes/auth');
 const { requireAuthPage } = require('./middleware/auth');
 
@@ -57,6 +58,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Rutas de la API
 app.use('/api/apartados', apartadosRoutes);
+app.use('/api/productos', productosRoutes);
 app.use('/api/auth', authRoutes);
 
 // Manejo de rutas no encontradas (API)

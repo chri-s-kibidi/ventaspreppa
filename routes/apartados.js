@@ -6,8 +6,6 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-const SABORES_VALIDOS = ['Cereza', 'Arcoiris', 'Sandía'];
-
 // Rate limit para evitar spam de pedidos (fuerza bruta / bots)
 const crearApartadoLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutos
@@ -31,7 +29,7 @@ router.post(
     body('sabor')
       .trim()
       .notEmpty().withMessage('El sabor es obligatorio')
-      .isIn(SABORES_VALIDOS).withMessage('Sabor no válido')
+      .isLength({ max: 100 }).withMessage('Sabor no válido')
       .escape(),
     body('cantidad')
       .notEmpty().withMessage('La cantidad es obligatoria')
@@ -46,19 +44,47 @@ router.post(
 
     const { nombre, sabor, cantidad } = req.body;
 
+    const client = await db.pool.connect();
+
     try {
-      const result = await db.query(
+      await client.query('BEGIN');
+
+      const productoResult = await client.query(
+        'SELECT id, stock FROM productos WHERE nombre = $1 AND activo = true FOR UPDATE',
+        [sabor]
+      );
+
+      if (productoResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Sabor no válido o no disponible' });
+      }
+
+      const producto = productoResult.rows[0];
+
+      if (producto.stock < cantidad) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No hay stock suficiente para ese sabor.' });
+      }
+
+      await client.query('UPDATE productos SET stock = stock - $1 WHERE id = $2', [cantidad, producto.id]);
+
+      const result = await client.query(
         'INSERT INTO apartados (nombre, sabor, cantidad, estado) VALUES ($1, $2, $3, $4) RETURNING id',
         [nombre, sabor, cantidad, 'Pendiente']
       );
+
+      await client.query('COMMIT');
 
       return res.status(201).json({
         message: '¡Apartado confirmado con éxito!',
         id: result.rows[0].id
       });
     } catch (err) {
+      await client.query('ROLLBACK');
       console.error('Error al crear apartado:', err);
       return res.status(500).json({ error: 'Error interno al guardar el apartado.' });
+    } finally {
+      client.release();
     }
   }
 );

@@ -19,7 +19,7 @@ pool.on('error', (err) => {
   console.error('Error inesperado en el pool de Postgres:', err);
 });
 
-// Inicializa la tabla de apartados si no existe
+// Inicializa las tablas si no existen
 async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS apartados (
@@ -31,6 +31,33 @@ async function initDb() {
       fecha TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS productos (
+      id SERIAL PRIMARY KEY,
+      nombre TEXT NOT NULL UNIQUE,
+      descripcion TEXT NOT NULL DEFAULT '',
+      estilo_color TEXT NOT NULL DEFAULT '',
+      stock INTEGER NOT NULL DEFAULT 0,
+      precio NUMERIC NOT NULL DEFAULT 0,
+      activo BOOLEAN NOT NULL DEFAULT true
+    )
+  `);
+
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM productos');
+  if (rows[0].count === 0) {
+    await pool.query(
+      `INSERT INTO productos (nombre, descripcion, estilo_color, stock, precio, activo) VALUES
+        ($1, $2, $3, $4, $5, true),
+        ($6, $7, $8, $9, $10, true),
+        ($11, $12, $13, $14, $15, true)`,
+      [
+        'Cereza', 'Rojo carmesí intenso. Dulce, ácido y con un toque de chile que pega directo.', 'linear-gradient(135deg, #c8102e, #8b0000)', 12, 0,
+        'Arcoiris', 'Explosión de sabores frutales con un degradado de los 3 colores primarios.', 'linear-gradient(135deg, #ff0000, #ffff00, #0000ff)', 12, 0,
+        'Sandía', 'Fresca, neón y enchilada. El contraste perfecto entre dulce y picante.', 'linear-gradient(135deg, #ff007f, #39ff14)', 12, 0
+      ]
+    );
+  }
 }
 
 module.exports = {
