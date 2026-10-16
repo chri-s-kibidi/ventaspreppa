@@ -17,6 +17,10 @@
   <main class="container admin-main">
     <h1 class="section-title">Pedidos</h1>
 
+    <div class="acciones-admin">
+      <button type="button" class="toggle-btn" id="csv-btn">Descargar CSV</button>
+    </div>
+
     <div class="stats-bar" id="stats-bar"></div>
 
     <div class="table-wrapper">
@@ -30,11 +34,32 @@
             <th>Total</th>
             <th>Fecha / Hora</th>
             <th>Estado</th>
+            <th>Pagado</th>
             <th>Acción</th>
           </tr>
         </thead>
         <tbody id="pedidos-tbody">
-          <tr><td colspan="8" class="loading-row">Cargando pedidos...</td></tr>
+          <tr><td colspan="9" class="loading-row">Cargando pedidos...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h1 class="section-title" style="margin-top: 60px;">Resumen</h1>
+
+    <div class="resumen-grid" id="resumen-cards"></div>
+
+    <div class="table-wrapper">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Vendidas</th>
+            <th>Stock actual</th>
+            <th>Ganancia</th>
+          </tr>
+        </thead>
+        <tbody id="resumen-tbody">
+          <tr><td colspan="4" class="loading-row">Cargando resumen...</td></tr>
         </tbody>
       </table>
     </div>
@@ -63,6 +88,10 @@
           <label for="p-precio">Precio</label>
           <input type="number" id="p-precio" name="precio" min="0" step="0.01" value="0" required>
         </div>
+        <div class="form-group">
+          <label for="p-costo">Costo por bolsa</label>
+          <input type="number" id="p-costo" name="costo" min="0" step="0.01" value="0" required>
+        </div>
         <button type="submit" class="btn-submit" id="producto-submit-btn">Agregar Producto</button>
         <div id="producto-feedback" class="feedback-msg"></div>
       </form>
@@ -78,16 +107,59 @@
             <th>Color</th>
             <th>Stock</th>
             <th>Precio</th>
+            <th>Costo</th>
             <th>Estado</th>
             <th>Acción</th>
           </tr>
         </thead>
         <tbody id="productos-tbody">
-          <tr><td colspan="8" class="loading-row">Cargando productos...</td></tr>
+          <tr><td colspan="9" class="loading-row">Cargando productos...</td></tr>
         </tbody>
       </table>
     </div>
+
+    <h1 class="section-title" style="margin-top: 60px;">Configuración</h1>
+
+    <div class="form-wrapper" style="margin-bottom: 30px;">
+      <form id="config-form" novalidate>
+        <div class="switch-row">
+          <input type="checkbox" id="config-abiertos" class="switch">
+          <label for="config-abiertos">Pedidos abiertos/cerrados: <span class="switch-estado" id="config-estado">Cerrados</span></label>
+        </div>
+        <div class="form-group">
+          <label for="config-texto">Texto de entrega</label>
+          <input type="text" id="config-texto" maxlength="300">
+        </div>
+        <button type="submit" class="btn-submit" id="config-submit-btn">Guardar</button>
+        <div id="config-feedback" class="feedback-msg"></div>
+      </form>
+    </div>
+
+    <h1 class="section-title" style="margin-top: 60px;">Cierres semanales</h1>
+
+    <div class="acciones-admin">
+      <button type="button" class="btn-submit" id="reset-open-btn">Cierre semanal y reseteo</button>
+    </div>
+
+    <div id="cierres-list"></div>
   </main>
+
+  <div class="modal-overlay" id="reset-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+      <h2 class="modal-title" id="reset-title">Cierre semanal y reseteo</h2>
+      <p class="modal-text">
+        Hay <strong id="reset-pendientes">0</strong> pedidos pendientes. Al confirmar se guardará el cierre, se borrarán todos los pedidos y el stock quedará en 0.
+      </p>
+      <div class="form-group">
+        <label for="reset-confirm">Escribe RESETEAR para confirmar</label>
+        <input type="text" id="reset-confirm" autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="toggle-btn" id="reset-cancel-btn">Cancelar</button>
+        <button type="button" class="btn-submit" id="reset-submit-btn" disabled>Confirmar reseteo</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/admin/admin.js"></script>
 </body>
