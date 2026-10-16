@@ -1,69 +1,101 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const tbody = document.getElementById('apartados-tbody');
+  const tbody = document.getElementById('pedidos-tbody');
   const statsBar = document.getElementById('stats-bar');
   const logoutBtn = document.getElementById('logout-btn');
 
-  function saborClass(sabor) {
-    const s = sabor.toLowerCase();
-    if (s.includes('cere')) return 'cereza';
-    if (s.includes('arco')) return 'arcoiris';
-    if (s.includes('sand')) return 'sandia';
-    return '';
+  function mostrarMensajeTabla(mensaje) {
+    tbody.innerHTML = '';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 8;
+    td.className = 'empty-row';
+    td.textContent = mensaje;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  function agregarCelda(tr, contenido) {
+    const td = document.createElement('td');
+    if (contenido instanceof Node) {
+      td.appendChild(contenido);
+    } else {
+      td.textContent = contenido;
+    }
+    tr.appendChild(td);
+    return td;
   }
 
-  function renderStats(apartados) {
-    const total = apartados.length;
-    const pendientes = apartados.filter(a => a.estado === 'Pendiente').length;
-    const entregados = total - pendientes;
-    const totalBolsas = apartados.reduce((sum, a) => sum + a.cantidad, 0);
+  function renderStats(pedidos) {
+    const total = pedidos.length;
+    const pendientes = pedidos.filter(p => p.estado === 'Pendiente').length;
+    const entregados = pedidos.filter(p => p.estado === 'Entregado').length;
+    const totalBolsas = pedidos.reduce(
+      (sum, p) => sum + p.items.reduce((s, item) => s + item.cantidad, 0),
+      0
+    );
 
     statsBar.innerHTML = `
-      <div class="stat-pill"><strong>${total}</strong>Apartados</div>
+      <div class="stat-pill"><strong>${total}</strong>Pedidos</div>
       <div class="stat-pill"><strong>${pendientes}</strong>Pendientes</div>
       <div class="stat-pill"><strong>${entregados}</strong>Entregados</div>
       <div class="stat-pill"><strong>${totalBolsas}</strong>Bolsas totales</div>
     `;
   }
 
-  function renderTable(apartados) {
-    if (apartados.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-row">Aún no hay apartados registrados.</td></tr>`;
+  function renderTable(pedidos) {
+    if (pedidos.length === 0) {
+      mostrarMensajeTabla('Aún no hay pedidos registrados.');
       return;
     }
 
-    tbody.innerHTML = apartados.map(a => {
-      const isEntregado = a.estado === 'Entregado/Pagado';
+    tbody.innerHTML = '';
+
+    pedidos.forEach((p) => {
+      const isEntregado = p.estado === 'Entregado';
       const badgeClass = isEntregado ? 'entregado' : 'pendiente';
-      const nextEstado = isEntregado ? 'Pendiente' : 'Entregado/Pagado';
+      const nextEstado = isEntregado ? 'Pendiente' : 'Entregado';
       const btnLabel = isEntregado ? 'Marcar Pendiente' : 'Marcar Entregado';
-      const fecha = new Date(a.fecha.replace(' ', 'T')).toLocaleString('es-MX', {
-        dateStyle: 'short',
-        timeStyle: 'short'
+
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-id', p.id);
+
+      agregarCelda(tr, String(p.id));
+      agregarCelda(tr, p.nombre_cliente);
+      agregarCelda(tr, p.contacto || '');
+
+      const tdItems = agregarCelda(tr, '');
+      p.items.forEach((item) => {
+        const span = document.createElement('span');
+        span.className = 'sabor-tag';
+        span.textContent = `${item.nombre_producto} x${item.cantidad}`;
+        tdItems.appendChild(span);
+        tdItems.appendChild(document.createElement('br'));
       });
 
-      return `
-        <tr data-id="${a.id}">
-          <td>${a.id}</td>
-          <td>${escapeHtml(a.nombre)}</td>
-          <td><span class="sabor-tag ${saborClass(a.sabor)}">${escapeHtml(a.sabor)}</span></td>
-          <td>${a.cantidad}</td>
-          <td>${fecha}</td>
-          <td><span class="badge ${badgeClass}">${a.estado}</span></td>
-          <td><button class="toggle-btn" data-next="${nextEstado}">${btnLabel}</button></td>
-        </tr>
-      `;
-    }).join('');
+      agregarCelda(tr, `$${Number(p.total).toFixed(2)}`);
+      agregarCelda(tr, new Date(p.creado_en).toLocaleString('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }));
+
+      const badge = document.createElement('span');
+      badge.className = `badge ${badgeClass}`;
+      badge.textContent = p.estado;
+      agregarCelda(tr, badge);
+
+      const btn = document.createElement('button');
+      btn.className = 'toggle-btn';
+      btn.setAttribute('data-next', nextEstado);
+      btn.textContent = btnLabel;
+      agregarCelda(tr, btn);
+
+      tbody.appendChild(tr);
+    });
   }
 
-  async function cargarApartados() {
+  async function cargarPedidos() {
     try {
-      const res = await fetch('/api/apartados');
+      const res = await fetch('/api/pedidos');
 
       if (res.status === 401) {
         window.location.href = '/admin/login.html';
@@ -72,14 +104,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await res.json();
       if (!res.ok) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-row">${data.error || 'Error al cargar apartados'}</td></tr>`;
+        mostrarMensajeTabla(data.error || 'Error al cargar pedidos');
         return;
       }
 
       renderStats(data);
       renderTable(data);
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-row">Error de conexión con el servidor.</td></tr>`;
+      mostrarMensajeTabla('Error de conexión con el servidor.');
     }
   }
 
@@ -95,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.textContent = 'Actualizando...';
 
     try {
-      const res = await fetch(`/api/apartados/${id}/estado`, {
+      const res = await fetch(`/api/pedidos/${id}/estado`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: nextEstado })
@@ -110,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('No se pudo actualizar');
       }
 
-      await cargarApartados();
+      await cargarPedidos();
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Reintentar';
@@ -126,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  cargarApartados();
+  cargarPedidos();
 
   // ===== PRODUCTOS =====
   const productosTbody = document.getElementById('productos-tbody');
