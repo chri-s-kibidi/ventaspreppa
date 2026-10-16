@@ -44,6 +44,29 @@ async function initDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pedidos (
+      id SERIAL PRIMARY KEY,
+      nombre_cliente TEXT NOT NULL,
+      contacto TEXT,
+      estado TEXT NOT NULL DEFAULT 'Pendiente',
+      pagado BOOLEAN NOT NULL DEFAULT false,
+      total NUMERIC NOT NULL DEFAULT 0,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pedido_items (
+      id SERIAL PRIMARY KEY,
+      pedido_id INTEGER NOT NULL REFERENCES pedidos(id),
+      producto_id INTEGER REFERENCES productos(id),
+      nombre_producto TEXT NOT NULL,
+      precio_unitario NUMERIC NOT NULL,
+      cantidad INTEGER NOT NULL
+    )
+  `);
+
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM productos');
   if (rows[0].count === 0) {
     await pool.query(
