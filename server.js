@@ -11,9 +11,13 @@ const apartadosRoutes = require('./routes/apartados');
 const productosRoutes = require('./routes/productos');
 const pedidosRoutes = require('./routes/pedidos');
 const authRoutes = require('./routes/auth');
+const resumenRoutes = require('./routes/resumen');
+const cierresRoutes = require('./routes/cierres');
+const configRoutes = require('./routes/config');
 const { requireAuthPage } = require('./middleware/auth');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Verificación de variables de entorno críticas
@@ -62,6 +66,9 @@ app.use('/api/apartados', apartadosRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/resumen', resumenRoutes);
+app.use('/api/cierres', cierresRoutes);
+app.use('/api/config', configRoutes);
 
 // Manejo de rutas no encontradas (API)
 app.use('/api', (req, res) => {

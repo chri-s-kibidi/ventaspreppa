@@ -67,6 +67,49 @@ async function initDb() {
     )
   `);
 
+  await pool.query('ALTER TABLE productos ADD COLUMN IF NOT EXISTS costo NUMERIC NOT NULL DEFAULT 0');
+  await pool.query('ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS costo_unitario NUMERIC NOT NULL DEFAULT 0');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cierres (
+      id SERIAL PRIMARY KEY,
+      creado_en TIMESTAMPTZ DEFAULT NOW(),
+      total_pedidos INT,
+      bolsas_vendidas INT,
+      ingresos NUMERIC,
+      costos NUMERIC,
+      ganancia NUMERIC
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cierre_items (
+      id SERIAL PRIMARY KEY,
+      cierre_id INT REFERENCES cierres(id) ON DELETE CASCADE,
+      nombre_producto TEXT,
+      stock_restante INT,
+      vendidas INT,
+      ingresos NUMERIC,
+      ganancia NUMERIC,
+      conteo_fisico INT NULL
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS config (
+      clave TEXT PRIMARY KEY,
+      valor TEXT
+    )
+  `);
+
+  const configCount = await pool.query('SELECT COUNT(*)::int AS count FROM config');
+  if (configCount.rows[0].count === 0) {
+    await pool.query(
+      'INSERT INTO config (clave, valor) VALUES ($1, $2), ($3, $4) ON CONFLICT (clave) DO NOTHING',
+      ['pedidos_abiertos', 'true', 'texto_entrega', '']
+    );
+  }
+
   const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM productos');
   if (rows[0].count === 0) {
     await pool.query(

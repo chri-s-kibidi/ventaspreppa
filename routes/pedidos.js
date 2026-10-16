@@ -58,13 +58,23 @@ router.post(
 
     const idsOrdenados = Array.from(idsVistos).sort((a, b) => a - b);
 
+    try {
+      const configResult = await db.query('SELECT valor FROM config WHERE clave = $1', ['pedidos_abiertos']);
+      if (configResult.rowCount > 0 && configResult.rows[0].valor === 'false') {
+        return res.status(403).json({ error: 'Los apartados están cerrados por ahora' });
+      }
+    } catch (err) {
+      console.error('Error al leer configuración:', err);
+      return res.status(500).json({ error: 'Error interno al guardar el pedido.' });
+    }
+
     const client = await db.pool.connect();
 
     try {
       await client.query('BEGIN');
 
       const productosResult = await client.query(
-        'SELECT id, nombre, precio, stock, activo FROM productos WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE',
+        'SELECT id, nombre, precio, costo, stock, activo FROM productos WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE',
         [idsOrdenados]
       );
 
@@ -103,8 +113,8 @@ router.post(
       for (const item of items) {
         const producto = productosPorId.get(item.producto_id);
         await client.query(
-          'INSERT INTO pedido_items (pedido_id, producto_id, nombre_producto, precio_unitario, cantidad) VALUES ($1, $2, $3, $4, $5)',
-          [pedidoId, producto.id, producto.nombre, producto.precio, item.cantidad]
+          'INSERT INTO pedido_items (pedido_id, producto_id, nombre_producto, precio_unitario, costo_unitario, cantidad) VALUES ($1, $2, $3, $4, $5, $6)',
+          [pedidoId, producto.id, producto.nombre, producto.precio, producto.costo, item.cantidad]
         );
       }
 
@@ -144,6 +154,7 @@ router.get('/', requireAuth, async (req, res) => {
               'producto_id', pi.producto_id,
               'nombre_producto', pi.nombre_producto,
               'precio_unitario', pi.precio_unitario,
+              'costo_unitario', pi.costo_unitario,
               'cantidad', pi.cantidad
             ) ORDER BY pi.id
           ) FILTER (WHERE pi.id IS NOT NULL),
@@ -184,17 +195,138 @@ router.patch(
 
     const { estado } = req.body;
 
-    try {
-      const result = await db.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, id]);
+    const client = await db.pool.connect();
 
-      if (result.rowCount === 0) {
+    try {
+      await client.query('BEGIN');
+
+      const actual = await client.query('SELECT estado FROM pedidos WHERE id = $1 FOR UPDATE', [id]);
+      if (actual.rowCount === 0) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Pedido no encontrado' });
       }
 
+      const estadoActual = actual.rows[0].estado;
+      if (estadoActual !== 'Pendiente' && estadoActual !== 'Entregado') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: estadoActual === 'Cancelado'
+            ? 'No se puede cambiar el estado de un pedido cancelado.'
+            : 'El pedido no está en un estado que permita este cambio.'
+        });
+      }
+
+      await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', [estado, id]);
+      await client.query('COMMIT');
+
       return res.json({ message: 'Estado actualizado correctamente' });
     } catch (err) {
+      await client.query('ROLLBACK');
       console.error('Error al actualizar estado:', err);
       return res.status(500).json({ error: 'Error interno al actualizar el estado.' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// PATCH /api/pedidos/:id/cancelar -> cancelar pedido y devolver stock (protegido, solo admin)
+router.patch('/:id/cancelar', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const actual = await client.query('SELECT estado FROM pedidos WHERE id = $1 FOR UPDATE', [id]);
+    if (actual.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+
+    if (actual.rows[0].estado !== 'Pendiente') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Solo se pueden cancelar pedidos en estado "Pendiente". Estado actual: "${actual.rows[0].estado}".`
+      });
+    }
+
+    const cantidades = await client.query(
+      `SELECT producto_id, SUM(cantidad)::int AS cantidad
+       FROM pedido_items
+       WHERE pedido_id = $1 AND producto_id IS NOT NULL
+       GROUP BY producto_id
+       ORDER BY producto_id ASC`,
+      [id]
+    );
+
+    for (const fila of cantidades.rows) {
+      await client.query('UPDATE productos SET stock = stock + $1 WHERE id = $2', [fila.cantidad, fila.producto_id]);
+    }
+
+    await client.query('UPDATE pedidos SET estado = $1 WHERE id = $2', ['Cancelado', id]);
+    await client.query('COMMIT');
+
+    return res.json({ message: 'Pedido cancelado y stock devuelto correctamente' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error al cancelar pedido:', err);
+    return res.status(500).json({ error: 'Error interno al cancelar el pedido.' });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/pedidos/:id/pagado -> marcar pagado/no pagado (protegido, solo admin)
+router.patch(
+  '/:id/pagado',
+  requireAuth,
+  [
+    body('pagado')
+      .custom((value) => typeof value === 'boolean').withMessage('El campo pagado debe ser booleano')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const { pagado } = req.body;
+    const client = await db.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const actual = await client.query('SELECT estado FROM pedidos WHERE id = $1 FOR UPDATE', [id]);
+      if (actual.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Pedido no encontrado' });
+      }
+
+      if (actual.rows[0].estado === 'Cancelado') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'No se puede modificar el pago de un pedido cancelado.' });
+      }
+
+      await client.query('UPDATE pedidos SET pagado = $1 WHERE id = $2', [pagado, id]);
+      await client.query('COMMIT');
+
+      return res.json({ message: 'Pago actualizado correctamente' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Error al actualizar pago:', err);
+      return res.status(500).json({ error: 'Error interno al actualizar el pago.' });
+    } finally {
+      client.release();
     }
   }
 );

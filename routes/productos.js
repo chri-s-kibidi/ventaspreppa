@@ -25,6 +25,10 @@ const productoValidators = [
   body('precio')
     .notEmpty().withMessage('El precio es obligatorio')
     .isFloat({ min: 0 }).withMessage('El precio debe ser un número >= 0')
+    .toFloat(),
+  body('costo')
+    .optional()
+    .isFloat({ min: 0 }).withMessage('El costo debe ser un número >= 0')
     .toFloat()
 ];
 
@@ -59,13 +63,13 @@ router.post('/', requireAuth, productoValidators, async (req, res) => {
     return res.status(400).json({ error: errors.array()[0].msg, errors: errors.array() });
   }
 
-  const { nombre, descripcion = '', estilo_color = '', stock, precio } = req.body;
+  const { nombre, descripcion = '', estilo_color = '', stock, precio, costo = 0 } = req.body;
 
   try {
     const result = await db.query(
-      `INSERT INTO productos (nombre, descripcion, estilo_color, stock, precio, activo)
-       VALUES ($1, $2, $3, $4, $5, true) RETURNING id`,
-      [nombre, descripcion, estilo_color, stock, precio]
+      `INSERT INTO productos (nombre, descripcion, estilo_color, stock, precio, costo, activo)
+       VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id`,
+      [nombre, descripcion, estilo_color, stock, precio, costo]
     );
     return res.status(201).json({ message: 'Producto creado correctamente', id: result.rows[0].id });
   } catch (err) {
@@ -103,6 +107,10 @@ router.patch(
       .optional()
       .isFloat({ min: 0 }).withMessage('El precio debe ser un número >= 0')
       .toFloat(),
+    body('costo')
+      .optional()
+      .isFloat({ min: 0 }).withMessage('El costo debe ser un número >= 0')
+      .toFloat(),
     body('activo')
       .optional()
       .isBoolean().withMessage('Activo debe ser booleano')
@@ -119,7 +127,7 @@ router.patch(
       return res.status(400).json({ error: 'ID inválido' });
     }
 
-    const campos = ['nombre', 'descripcion', 'estilo_color', 'stock', 'precio', 'activo'];
+    const campos = ['nombre', 'descripcion', 'estilo_color', 'stock', 'precio', 'costo', 'activo'];
     const sets = [];
     const values = [];
     let idx = 1;
