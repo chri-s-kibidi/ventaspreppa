@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>candyzz by chr!s | Gomitas Xile Chile</title>
+  <title>Stock | Candyzz by chris</title>
   <meta name="description" content="Encuentra y aparta las gomitas enchiladas Xile Chile (Cereza, Arcoiris y Sandía) en candyzz by chr!s.">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -30,6 +30,15 @@
   <section id="apartado" class="container">
     <h2 class="section-title">Confirma tu apartado</h2>
     <div class="form-wrapper">
+      <div class="carrito-resumen">
+        <p id="carrito-vacio" class="carrito-vacio">Tu carrito está vacío.</p>
+        <ul id="carrito-lista" class="carrito-lista"></ul>
+        <div class="carrito-total">
+          <span>Total</span>
+          <strong id="carrito-total">$0</strong>
+        </div>
+      </div>
+
       <form id="apartado-form" novalidate>
         <div class="form-group">
           <label for="nombre">Nombre completo</label>
@@ -37,21 +46,38 @@
         </div>
 
         <div class="form-group">
-          <label for="sabor">Sabor</label>
-          <select id="sabor" name="sabor" required>
-            <option value="" disabled selected>Selecciona un sabor</option>
-          </select>
+          <label for="contacto">Salón o WhatsApp (opcional)</label>
+          <input type="text" id="contacto" name="contacto" placeholder="Ej. Salón 3B o 555 123 4567" maxlength="60" aria-describedby="contacto-ayuda">
+          <small id="contacto-ayuda" class="form-help">Lo usamos para ubicarte al entregar tu pedido.</small>
         </div>
 
-        <div class="form-group">
-          <label for="cantidad">Cantidad de bolsas</label>
-          <input type="number" id="cantidad" name="cantidad" min="1" max="50" value="1" required>
-        </div>
-
-        <button type="submit" class="btn-submit" id="submit-btn">Confirmar Apartado</button>
+        <button type="submit" class="btn-submit" id="submit-btn">Confirmar apartado</button>
 
         <div id="feedback" class="feedback-msg"></div>
       </form>
+    </div>
+  </section>
+
+  <div id="modal-contacto" class="modal-overlay" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-texto">
+      <p id="modal-texto" class="modal-texto">No dejaste salón ni WhatsApp. Sin esto no podremos ubicarte para entregar tu pedido. ¿Apartar de todos modos?</p>
+      <div class="modal-acciones">
+        <button type="button" class="btn-secondary" id="modal-volver">Volver</button>
+        <button type="button" class="btn-submit" id="modal-apartar">Apartar así</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="confirmacion" class="container" hidden>
+    <div class="form-wrapper confirmacion">
+      <h2 class="section-title">¡Apartado confirmado!</h2>
+      <p id="confirmacion-numero" class="confirmacion-numero"></p>
+      <ul id="confirmacion-lista" class="carrito-lista"></ul>
+      <div class="carrito-total">
+        <span>Total</span>
+        <strong id="confirmacion-total"></strong>
+      </div>
+      <button type="button" class="btn-submit" id="btn-nuevo">Hacer otro apartado</button>
     </div>
   </section>
 
